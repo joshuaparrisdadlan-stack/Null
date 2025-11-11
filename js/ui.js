@@ -10,6 +10,8 @@
   const ropeEl = document.getElementById('rope');
   const pingNumEl = document.getElementById('pingNum');
   const turnsEl = document.getElementById('turns');
+  const cmdInput = document.getElementById('commandInput');
+  const cmdSubmit = document.getElementById('cmdSubmit');
 
   // short helpers
   function write(text, cls='m-info'){ const d=document.createElement('div'); d.className=cls; d.textContent=text; logEl.appendChild(d); logEl.scrollTop=logEl.scrollHeight; }
@@ -133,7 +135,36 @@
     btn.addEventListener('click', fn);
     choicesEl.appendChild(btn);
   }
+  function runCommand() {
+  const text = cmdInput.value.trim();
+  if (!text) return;
+  // Simple command parser:
+  const lower = text.toLowerCase();
+  if (lower === 'listen' || lower === 'listen with the thread') {
+    runAction(Game.actionListenThread);
+  } else if (lower.startsWith('go ') || lower.startsWith('travel ')) {
+    const loc = lower.replace(/^(go|travel) /, '').trim();
+    if (Game.locations().includes(loc)) {
+      runAction(() => Game.actionTravelTo(loc));
+    } else {
+      write(`You don’t know how to get to “${loc}”.`, 'm-danger');
+    }
+  } else if (lower.startsWith('buy') || lower.includes('moss')) {
+    runAction(Game.actionBuyMoss);
+  } else if (lower.startsWith('light')) {
+    runAction(Game.actionLightLantern);
+  } else if (lower.startsWith('shout')) {
+    runAction(Game.actionShout);
+  } else {
+    write(`You whisper “${text}”, but nothing happens.`, 'm-info');
+  }
+  cmdInput.value = '';
+}
 
+cmdSubmit.addEventListener('click', runCommand);
+cmdInput.addEventListener('keydown', (ev) => {
+  if (ev.key === 'Enter') runCommand();
+});
   function resetGame(){
     const startState = {
       location: 'Still Market',
