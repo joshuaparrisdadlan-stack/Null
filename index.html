@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>NULL — Rope & Silence (Text Adventure)</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="game" role="application" aria-label="Null: Rope and Silence">
+    <header>
+      <div class="title">NULL<span class="muted">— Rope &amp; Silence</span></div>
+      <div class="subtitle muted">A tactile text-adventure — play with care</div>
+    </header>
+
+    <main class="main-area">
+      <section id="log" class="log" aria-live="polite"></section>
+
+      <nav id="choices" class="choices" aria-label="Choices"></nav>
+
+      <footer class="footer">
+        <div class="tip muted">Tip: treat every light or loud choice as a Ping. Keep ropes and beads close.</div>
+        <div class="controls">
+          <button id="saveBtn" class="btn">Save</button>
+          <button id="loadBtn" class="btn">Load</button>
+          <button id="resetBtn" class="btn ghost">Restart</button>
+        </div>
+      </footer>
+
+      <!-- Command input box at bottom -->
+      <div class="command-row">
+        <label for="commandInput" class="command-label">Command:</label>
+        <input id="commandInput" class="command-input" placeholder="Try: whisper hello  —  morse help  —  braille trade  —  inspect" autocomplete="off" />
+        <button id="cmdSubmit" class="btn btn-primary">Run</button>
+        <button id="cmdHelp" class="btn ghost">Help</button>
+      </div>
+    </main>
+  </div>
+
+  <aside class="panel" aria-label="Status panel">
+    <div class="status">
+      <div class="bell" title="The Last Bell">
+        <img src="assets/svg/bell.svg" alt="" aria-hidden="true">
+      </div>
+      <div class="sensate-block">
+        <div class="label">Sensate</div>
+        <div id="sensate" class="senses">...</div>
+      </div>
+    </div>
+
+    <div class="ping-box">
+      <div class="label muted">Pings</div>
+      <div class="meter">
+        <div id="rope" class="rope">
+          <img src="assets/svg/bead.svg" class="bead" data-i="0" alt="">
+          <img src="assets/svg/bead.svg" class="bead" data-i="1" alt="">
+          <img src="assets/svg/bead.svg" class="bead" data-i="2" alt="">
+          <img src="assets/svg/bead.svg" class="bead" data-i="3" alt="">
+          <img src="assets/svg/bead.svg" class="bead" data-i="4" alt="">
+          <img src="assets/svg/bead.svg" class="bead" data-i="5" alt="">
+        </div>
+        <div id="pingNum" class="ping-number">0</div>
+      </div>
+    </div>
+
+    <div class="map">
+      <div class="map-header">
+        <strong>Known Routes</strong>
+        <div id="currentLocation" class="muted">Still Market</div>
+      </div>
+      <div id="locations" class="locations"></div>
+    </div>
+
+    <div>
+      <div class="label">Inventory</div>
+      <div id="inventory" class="inventory"></div>
+    </div>
+
+    <div class="turns-row">
+      <div class="muted">Logbook (events recorded)</div>
+      <div id="turns" class="muted">Turns: 0</div>
+    </div>
+  </aside>
+
+  <script src="js/game.js"></script>
+  <script src="js/ui.js"></script>
+</body>
+</html>

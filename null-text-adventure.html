@@ -1,0 +1,738 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>NULL — Rope & Silence (Text Adventure)</title>
+<style>
+  :root{
+    --bg:#070607;
+    --muted:#9aa0a6;
+    --accent:#9fd3c7;
+    --rope:#6b4938;
+    --bead:#c9a34a;
+    --glass:#0b0f10;
+    --danger:#d96b6b;
+    --panel:#0b0b0b;
+  }
+  html,body{height:100%;margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;}
+  body{
+    background:
+      radial-gradient(1200px 600px at 10% 20%, rgba(15,18,20,0.6), transparent 10%),
+      radial-gradient(800px 400px at 90% 80%, rgba(12,10,14,0.45), transparent 10%),
+      linear-gradient(180deg,var(--bg),#030303 60%);
+    color:#dfe6e6;
+    display:flex;
+    align-items:stretch;
+    gap:18px;
+    padding:20px;
+  }
+
+  /* Left: main game window */
+  .game{
+    flex:1 1 0;
+    min-width:360px;
+    background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    border-radius:12px;
+    padding:18px;
+    box-shadow:0 10px 40px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.02);
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+  }
+
+  header{
+    display:flex;
+    align-items:center;
+    gap:12px;
+  }
+  .title{
+    font-size:1.35rem;
+    letter-spacing:0.06em;
+    color:var(--accent);
+    display:flex;
+    gap:8px;
+    align-items:center;
+  }
+  .subtitle{font-size:0.78rem;color:var(--muted);}
+
+  /* Text log */
+  #log{
+    background:linear-gradient(180deg,rgba(0,0,0,0.1),transparent);
+    border-radius:8px;
+    padding:14px;
+    height:56vh;
+    overflow:auto;
+    box-shadow:inset 0 6px 40px rgba(0,0,0,0.6);
+    font-size:1rem;
+    line-height:1.5;
+    white-space:pre-wrap;
+  }
+
+  /* Choice buttons */
+  .choices{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+  }
+  .choice{
+    background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    border:1px solid rgba(255,255,255,0.03);
+    color:var(--accent);
+    padding:10px 12px;
+    border-radius:999px;
+    cursor:pointer;
+    transition:transform .08s ease, box-shadow .08s;
+    font-weight:600;
+  }
+  .choice:hover{transform:translateY(-2px); box-shadow:0 6px 18px rgba(0,0,0,0.6);}
+  .choice.small{padding:6px 8px;font-size:0.92rem;}
+
+  /* Side panel */
+  .panel{
+    width:320px;
+    background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.02));
+    border-radius:12px;
+    padding:14px;
+    box-shadow:0 10px 40px rgba(0,0,0,0.75);
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+  }
+  .status-row{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+  .meter{
+    background:linear-gradient(90deg,#0b0b0b, rgba(255,255,255,0.02));
+    border-radius:10px;
+    padding:8px;
+    display:flex;
+    gap:6px;
+    align-items:center;
+  }
+  .rope{
+    height:12px;
+    flex:1;
+    background:linear-gradient(90deg, #4b3427 10%, #6b4938 50%, #3f2b20 90%);
+    border-radius:999px;
+    padding:4px;
+    display:flex;
+    gap:4px;
+    align-items:center;
+  }
+  .bead{
+    width:16px;height:16px;border-radius:50%;background:var(--bead);box-shadow:0 6px 10px rgba(0,0,0,0.6) inset;
+    opacity:.28; transform:scale(.9); transition:transform .18s,opacity .18s;
+  }
+  .bead.on{opacity:1; transform:scale(1.08);}
+  .ping-number{font-weight:800;color:var(--danger);}
+
+  .map{
+    background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.02));
+    border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:10px;
+  }
+  .locations{display:flex;flex-direction:column;gap:6px;}
+  .loc{
+    display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;cursor:pointer;border:1px solid rgba(255,255,255,0.02);
+  }
+  .loc:hover{background:rgba(255,255,255,0.01);}
+
+  .senses{
+    font-size:0.9rem;color:var(--muted);background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent);padding:8px;border-radius:8px;
+  }
+  .inventory{display:flex;gap:8px;flex-wrap:wrap;}
+  .item{padding:6px 8px;border-radius:999px;background:#0b0b0b;color:var(--muted);font-weight:600;border:1px solid rgba(255,255,255,0.02);}
+
+  footer{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-top:auto;color:var(--muted);font-size:0.85rem;}
+  button.reset{background:transparent;border:1px dashed rgba(255,255,255,0.04);color:var(--muted);padding:8px;border-radius:8px;cursor:pointer;}
+  .note{font-size:0.82rem;color:var(--muted)}
+
+  /* Small visuals */
+  .bell{
+    width:62px;height:62px;border-radius:10px;background:linear-gradient(180deg,#0e1112,#050505);display:flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,0.02);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.02);
+  }
+  .bell svg{width:40px;height:40px;fill:transparent;stroke:var(--muted);stroke-width:1.2;opacity:.9}
+  .danger{color:var(--danger);font-weight:800}
+
+  /* log message types */
+  .m-info{color:#cdebd9}
+  .m-action{color:#bfe0ff}
+  .m-danger{color:#ffb8b8}
+  .m-world{color:#efdfb0}
+  .m-sense{color:#bfb6ff;font-style:italic;}
+
+  /* small screens */
+  @media (max-width:900px){
+    body{padding:12px;}
+    .panel{width:100%;order:2}
+    .game{order:1}
+    body{flex-direction:column;}
+    #log{height:48vh;}
+  }
+</style>
+</head>
+<body>
+  <div class="game" role="application" aria-label="Null: Rope and Silence">
+    <header>
+      <div class="title">NULL<span style="font-size:.75rem;color:var(--muted)">— Rope & Silence</span></div>
+      <div style="flex:1"></div>
+      <div class="subtitle">A tactile text-adventure — play with care</div>
+    </header>
+
+    <div id="log" aria-live="polite"></div>
+
+    <div class="choices" id="choices"></div>
+
+    <footer>
+      <div class="note">Tip: treat every light or loud choice as a Ping. Keep ropes and beads close.</div>
+      <div>
+        <button class="choice small" id="saveBtn">Save</button>
+        <button class="choice small" id="loadBtn">Load</button>
+        <button class="reset" id="resetBtn">Restart</button>
+      </div>
+    </footer>
+  </div>
+
+  <aside class="panel" aria-label="Status panel">
+    <div class="status-row">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="bell" title="The Last Bell"><svg viewBox="0 0 24 24"><path d="M12 3c-1.7 0-3 1.3-3 3v1.2C6.9 9 5 11.7 5 15v2h14v-2c0-3.3-1.9-6-4-7.8V6c0-1.7-1.3-3-3-3z"></path></svg></div>
+        <div>
+          <div style="font-weight:800">Sensate</div>
+          <div class="senses" id="sensate">Calm, clear, small-shape echoes at your edges.</div>
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:.9rem;color:var(--muted)">Pings</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="meter">
+            <div class="rope" id="rope">
+              <div class="bead" data-i="0"></div>
+              <div class="bead" data-i="1"></div>
+              <div class="bead" data-i="2"></div>
+              <div class="bead" data-i="3"></div>
+              <div class="bead" data-i="4"></div>
+              <div class="bead" data-i="5"></div>
+            </div>
+          </div>
+          <div class="ping-number" id="pingNum">0</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="map" aria-label="Map and locations">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <strong>Known Routes</strong>
+        <div style="color:var(--muted);font-size:.9rem">Braided Archive</div>
+      </div>
+      <div class="locations" id="locations">
+        <!-- JS injects -->
+      </div>
+    </div>
+
+    <div>
+      <div style="font-weight:800">Inventory</div>
+      <div class="inventory" id="inventory">
+        <!-- items -->
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:space-between;align-items:center">
+      <div style="font-size:.85rem;color:var(--muted)">Logbook (events recorded)</div>
+      <div style="color:var(--muted);font-size:.82rem" id="turns">Turns: 0</div>
+    </div>
+
+  </aside>
+
+<script>
+/*
+  NULL — Rope & Silence
+  Single-file text adventure. Lightweight system:
+   - Locations: Still Market, Gloam Garden, Braided Archive, Quiet Kiln, Last Bell
+   - Ping mechanic: increment/decrement; 6+ -> Silence Leviathan (bad end)
+   - Sensate messages change with ping count
+   - Inventory includes Quencher Powder, Aura Thread, Blackglass Lantern
+   - Choices modify ping and progress scenes
+*/
+
+// -- State
+let state = {
+  location: 'Still Market',
+  pings: 0,
+  turns: 0,
+  inventory: {
+    'Quencher Powder': 2,
+    'Aura Thread': 1,
+    'Blackglass Lantern': 1,
+    'Beads': 5,
+    'Braids': 1
+  },
+  flags: {
+    photovoreCaptured: false,
+    bellClapperMoved: false,
+    gardenDarkening: false
+  }
+};
+
+// -- world data
+const LOCS = [
+  'Still Market',
+  'Gloam Garden',
+  'Braided Archive',
+  'Quiet Kiln',
+  'Last Bell'
+];
+
+const logEl = document.getElementById('log');
+const choicesEl = document.getElementById('choices');
+const inventoryEl = document.getElementById('inventory');
+const locationsEl = document.getElementById('locations');
+const sensateEl = document.getElementById('sensate');
+const ropeEl = document.getElementById('rope');
+const pingNumEl = document.getElementById('pingNum');
+const turnsEl = document.getElementById('turns');
+
+// init UI
+function init(){
+  renderLocations();
+  renderInventory();
+  writeWorld(
+    "You wake into silence. The market around you is a tangle of ropes and curtained stalls. People trade with beads and in careful taps. Your rope is coiled at your hip; your thread hums faintly against your skin.",
+    'm-world'
+  );
+  describeLocation();
+  renderChoices();
+  updatePing(0); // draw beads
+  updateSensate();
+}
+function renderLocations(){
+  locationsEl.innerHTML = '';
+  LOCS.forEach(loc=>{
+    const div = document.createElement('div');
+    div.className = 'loc';
+    div.tabIndex = 0;
+    div.textContent = loc;
+    if (loc === state.location) div.style.outline = '1px dashed rgba(159,211,199,0.08)';
+    div.addEventListener('click', ()=>{ travelTo(loc); });
+    locationsEl.appendChild(div);
+  });
+}
+function renderInventory(){
+  inventoryEl.innerHTML = '';
+  for(const [k,v] of Object.entries(state.inventory)){
+    if (v > 0){
+      const it = document.createElement('div');
+      it.className = 'item';
+      it.textContent = k + (typeof v === 'number' ? ' ×'+v : '');
+      inventoryEl.appendChild(it);
+    }
+  }
+}
+function write(text, cls='m-info'){
+  const p = document.createElement('div');
+  p.className = cls;
+  p.textContent = text;
+  logEl.appendChild(p);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+function writeWorld(text, cls='m-world'){ write(text, cls); }
+function writeAction(text){ write(text, 'm-action'); }
+function writeDanger(text){ write(text, 'm-danger'); }
+function writeSense(text){ write("» " + text, 'm-sense'); }
+
+
+// -- Ping & Sensate
+function updatePing(delta, reason){
+  if (delta === 0 && reason) { /* allow reasonless draw */ }
+  state.pings = Math.max(0, state.pings + delta);
+  if (reason) writeAction((delta>0?'+':'')+delta+" Ping — "+reason);
+  pingNumEl.textContent = state.pings;
+  // update beads
+  const beads = ropeEl.querySelectorAll('.bead');
+  beads.forEach(b=>{
+    const i = Number(b.getAttribute('data-i'));
+    if (i < state.pings) b.classList.add('on'); else b.classList.remove('on');
+  });
+  updateSensate();
+  renderInventory();
+  checkLeviathan();
+}
+function updateSensate(){
+  const p = state.pings;
+  let msg = '';
+  if (p <= 1) msg = "Calm and quiet. The sensate is clear: near shapes, small and steady.";
+  else if (p <= 3) msg = "Unease: several disturbances. Shapes overlap; intent is muddled.";
+  else if (p <= 5) msg = "Noisy sensate. You feel pressure, edges of hungry shapes. Trust ropes and ritual.";
+  else msg = "The world thins. The sensate is almost drowned. Something enormous is turning its attention.";
+  sensateEl.textContent = msg;
+}
+function checkLeviathan(){
+  if (state.pings >= 6){
+    // trigger Silence Leviathan end immediately
+    writeDanger("A slow absence sweeps the area. The Last Bell's shadow stretches. The Silence Leviathan is aware.");
+    endGameLeviathan();
+  }
+}
+
+// -- Movement & Scenes
+function travelTo(loc){
+  if (loc === state.location){
+    writeAction("You remain at the " + loc + ".");
+    renderChoices();
+    return;
+  }
+  // traveling costs a step (small ping) unless you use thread / quiet route
+  const cost = 1;
+  writeAction("You coil your rope and step toward " + loc + ".");
+  state.location = loc;
+  state.turns++;
+  turnsEl.textContent = "Turns: " + state.turns;
+  updatePing(cost, "movement along a rope-route");
+  renderLocations();
+  describeLocation();
+  renderChoices();
+}
+
+function describeLocation(){
+  const loc = state.location;
+  if (loc === 'Still Market'){
+    writeWorld("Still Market — stalls curtained in blackcloth. Merchants trade beads and seals via taps. The smell of muffle-moss hangs in the air.");
+    writeSense("You sense multiple small presences - travellers, pets, a pair of Gloamhounds keeping to shadows.");
+  } else if (loc === 'Gloam Garden'){
+    writeWorld("Gloam Garden — a shallow hollow of pale moss and faint biolum. The glow is soft, sipped by plants. A keeper works in silence, pressing beads into a braid.");
+    if (!state.flags.gardenDarkening) {
+      writeSense("The plants drink a little of the world's noise. You feel calm here.");
+    } else {
+      writeSense("A thin dread: some growths are dimming. The garden isn't drinking Pings as it once did.");
+    }
+  } else if (loc === 'Braided Archive'){
+    writeWorld("Braided Archive — curtains of rope-scripts hang like a forest. Fingers move through braids, reading turns and bargains.");
+    writeSense("You feel recorded routes and old warnings weave together; some braids hum faintly with warnings.");
+  } else if (loc === 'Quiet Kiln'){
+    writeWorld("Quiet Kiln — the chimneys drink heat and noise. Artificers in padded gloves shape blackglass and coils.");
+    writeSense("The Kiln itself is a presence — a warm, patient hunger for sound.");
+  } else if (loc === 'Last Bell'){
+    writeWorld("The Last Bell — a titan suspended, quiet as a held breath. Smaller bells hang around it, tested in almost-ritual knocks.");
+    writeSense("An impossible weight: somehow the sensate channels toward this place.");
+  }
+}
+
+// -- Choices (contextual)
+function renderChoices(){
+  choicesEl.innerHTML = '';
+  const loc = state.location;
+  const options = [];
+  // universal choices
+  options.push({t:'Listen with the thread', f: listenThread});
+  options.push({t:'Check inventory/braids', f: inspectInventory});
+
+  // location-specific
+  if (loc === 'Still Market'){
+    options.push({t:'Purchase Muffle Moss (spend a bead)', f: buyMoss});
+    options.push({t:'Seek a Lamplighter contact (discrete)', f: seekLamplighter});
+    options.push({t:'Leave to Gloam Garden', f: ()=>travelTo('Gloam Garden')});
+    options.push({t:'Go to Braided Archive', f: ()=>travelTo('Braided Archive')});
+  } else if (loc === 'Gloam Garden'){
+    options.push({t:'Collect Muffle Moss (quietly)', f: collectMoss});
+    options.push({t:'Speak softly to the keeper', f: speakKeeper});
+    options.push({t:'Return to Still Market', f: ()=>travelTo('Still Market')});
+    options.push({t:'Go to Quiet Kiln (careful)', f: ()=>travelTo('Quiet Kiln')});
+  } else if (loc === 'Braided Archive'){
+    options.push({t:'Read a braid (trace with fingers)', f: readBraid});
+    options.push({t:'Replace a cut braid (use a braid)', f: fixBraid});
+    options.push({t:'Search for a stolen map (use beads)', f: searchMap});
+    options.push({t:'Return to Market', f: ()=>travelTo('Still Market')});
+  } else if (loc === 'Quiet Kiln'){
+    options.push({t:'Examine a blackglass lantern', f: examineLantern});
+    options.push({t:'Speak with a Bafflemaker', f: talkBafflemaker});
+    options.push({t:'Steal a shard of blackglass (risky)', f: stealShard});
+    options.push({t:'Walk toward the Last Bell', f: ()=>travelTo('Last Bell')});
+  } else if (loc === 'Last Bell'){
+    options.push({t:'Inspect the clapper (do not ring)', f: inspectClapper});
+    options.push({t:'Attempt a measured ring (relay a Ping) — Choir ritual', f: partialRing});
+    options.push({t:'Hide and watch its cords', f: hideWatch});
+    options.push({t:'Return to Braided Archive', f: ()=>travelTo('Braided Archive')});
+  }
+
+  // always offer some risky flair
+  options.push({t:'Light a small lantern (add strong Ping)', f: lightLantern});
+  options.push({t:'Whisper loudly / shout (draw attention)', f: shout});
+
+  // render
+  options.forEach(opt=>{
+    const btn = document.createElement('button');
+    btn.className = 'choice';
+    btn.textContent = opt.t;
+    btn.addEventListener('click', ()=>{ opt.f(); });
+    choicesEl.appendChild(btn);
+  });
+}
+
+/* ---------- Actions ---------- */
+
+function listenThread(){
+  writeAction("You pluck the Aura Thread between you and your companions. Tiny tugs return, like distant footfalls under water.");
+  // small ping for using thread (sensate feedback)
+  updatePing(0, "thread listen (no ping)");
+  // show a hint based on pings
+  if (state.pings <= 1) writeSense("The thread hums with a single steady presence to the north.");
+  else if (state.pings <= 3) writeSense("Multiple presences: a pack moving with purpose to the east.");
+  else writeSense("The thread trembles; the impressions are chaotic and hard to trust.");
+  state.turns++; turnsEl.textContent = "Turns: " + state.turns;
+}
+
+function inspectInventory(){
+  writeAction("You run your hands along your kit: ropes, beads, a small pouch of Quencher Powder.");
+  renderInventory();
+}
+
+function buyMoss(){
+  if (state.inventory['Beads'] <= 0){
+    writeDanger("You have no beads to trade.");
+    return;
+  }
+  state.inventory['Beads']--;
+  updatePing(0, "quiet trade (no ping)");
+  writeWorld("You trade a bead for a small pad of Muffle Moss. It smells faintly of rain.");
+  state.inventory['Quencher Powder'] = (state.inventory['Quencher Powder'] || 0);
+  renderInventory();
+  state.turns++; turnsEl.textContent = "Turns: " + state.turns;
+}
+
+function seekLamplighter(){
+  writeAction("You tap the agreed knot pattern into the rope and a Lamplighter emerges from a curtained stall.");
+  updatePing(1, "contacting a Lamplighter");
+  writeWorld("The Lamplighter warns: 'The beacon's eating more than it should.'");
+  state.turns++; turnsEl.textContent = "Turns: " + state.turns;
+}
+
+function collectMoss(){
+  writeAction("You kneel and gather soft moss into a pouch. The plants whisper barely as you move.");
+  updatePing(0, "quiet harvesting");
+  state.inventory['Quencher Powder'] = (state.inventory['Quencher Powder']||0) + 1;
+  writeWorld("You pocket Muffle Moss and a pinch of Quencher Powder falls into your hand.");
+  state.turns++; turnsEl.textContent = "Turns: " + state.turns;
+}
+
+function speakKeeper(){
+  writeAction("You voice a soft question to the keeper. Conversation crackles faintly in the sensate.");
+  updatePing(1, "soft speech");
+  if (!state.flags.gardenDarkening && Math.random() > 0.7){
+    state.flags.gardenDarkening = true;
+    writeWorld("The keeper's fingers tremble. 'Something is feeding on the glow,' they whisper. 'It grows bolder.'");
+  } else {
+    writeWorld("The keeper answers with measured sadness: the plants are thin this season; trade is tight.");
+  }
+  state.turns++; turnsEl.textContent = "Turns: " + state.turns;
+}
+
+function readBraid(){
+  writeAction("You run your fingers through a heavy braid. It tells of a crevice and a hushmother sighting two months ago.");
+  updatePing(0, "braid reading (tactile)");
+  writeWorld("The braid mentions a route to the Quiet Kiln and a notation: \"Do not ring.\"");
+  state.turns++; turnsEl.textContent = "Turns: " + state.turns;
+}
+
+function fixBraid(){
+  if ((state.inventory['Braids']||0) <= 0){
+    writeDanger("You have no spare braid to mend the archive.");
+    return;
+  }
+  state.inventory['Braids']--;
+  updatePing(0, "mending braid quietly");
+  writeWorld("You splice a new braid in place. The map is whole again; a household's safe route is restored.");
+  state.turns++; turnsEl.textContent = "Turns: " + state.turns;
+  renderInventory();
+}
+
+function searchMap(){
+  if (state.inventory['Beads'] <= 0){
+    writeDanger("You lack beads to persuade an archivist to share a map.");
+    updatePing(1, "attempted persuasion");
+    return;
+  }
+  state.inventory['Beads']--;
+  updatePing(0, "quiet trade for map");
+  const found = Math.random() > 0.4;
+  if (found){
+    writeWorld("You are given a slip: 'Old rope over the Mire—beware the bell-tsunami'. A route to a Gloam-Garden pool is marked.");
+    state.turns++; turnsEl.textContent = "Turns: " + state.turns;
+  } else {
+    writeWorld("The archivist frowns; the specific braid you need was stolen.");
+    state.turns++; turnsEl.textContent = "Turns: " + state.turns;
+  }
+  renderInventory();
+}
+
+function examineLantern(){
+  writeAction("The Blackglass Lantern sits cold. Its surface drinks your breath like a slow ocean.");
+  updatePing(0, "examining blackglass");
+  writeWorld("The lantern can store a flash or a sound — a vicious, useful thing. It thrums when near a Photovore memory.");
+  state.turns++; turnsEl.textContent = "Turns: " + state.turns;
+}
+
+function talkBafflemaker(){
+  writeAction("You speak to a bafflemaker in careful taps. They trade a whisper about Quencher Powder sources.");
+  updatePing(1, "quiet consultation");
+  state.turns++; turnsEl.textContent = "Turns: " + state.turns;
+}
+
+function stealShard(){
+  writeAction("You pry a shard of blackglass from a crate. Metal slips; a clink — oh.");
+  updatePing(2, "metal on crate while stealing");
+  // risk: 50% alarm
+  if (Math.random() > 0.5){
+    writeDanger("A muffled alarm thread pulses; guards come near. You slip away, clutching a shard.");
+    state.inventory['Blackglass Lantern'] = (state.inventory['Blackglass Lantern']||0) + 1;
+  } else {
+    writeWorld("You succeed unseen. The shard fits in your palm like a bright absence.");
+    state.inventory['Blackglass Lantern'] = (state.inventory['Blackglass Lantern']||0) + 1;
+  }
+  renderInventory();
+  state.turns++; turnsEl.textContent = "Turns: " + state.turns;
+}
+
+function inspectClapper(){
+  writeAction("You run gloved fingers along the clapper. It holds ancient knots; moving it would be to change fate.");
+  updatePing(0, "tactile inspection");
+  if (!state.flags.bellClapperMoved && Math.random() < 0.15){
+    state.flags.bellClapperMoved = true;
+    writeWorld("The clapper shifts a hair's breadth. Somewhere, a rope tenses. You decide not to touch more.");
+  } else {
+    writeWorld("You leave the clapper where it rests. The bell listens.");
+  }
+  state.turns++; turnsEl.textContent = "Turns: " + state.turns;
+}
+
+function partialRing(){
+  writeAction("You perform a measured ring — a Choir technique: a ribbon of vibration that does not call the deep.");
+  // This intentionally adds a Ping but can reveal info
+  updatePing(2, "measured ring (Choir ritual)");
+  const outcome = Math.random();
+  if (outcome < 0.3){
+    writeWorld("A distant echo answers. 'Not all is sealed,' the threads say. You gain a clue toward the Lighthouse heart.");
+  } else if (outcome < 0.7){
+    writeWorld("The ring brings only silence. But you feel an old recording of voices drift past.");
+  } else {
+    writeDanger("Something answered greedily. A large, hungry sense turned in your direction.");
+  }
+  state.turns++; turnsEl.textContent = "Turns: " + state.turns;
+}
+
+function hideWatch(){
+  writeAction("You fold into the bell's shadow. Time seems to thicken; ropes creak faintly with remembered steps.");
+  updatePing(0, "hiding and watching");
+  if (Math.random() < 0.2){
+    writeWorld("You glimpse a phantom of a procession — rope-bearers walking without sound. A braid hums with prophecy.");
+  } else {
+    writeWorld("You wait. The bell remains patient.");
+  }
+  state.turns++; turnsEl.textContent = "Turns: " + state.turns;
+}
+
+function lightLantern(){
+  // improbable helpful uses but dangerous: strong light gives +3 pings
+  if ((state.inventory['Blackglass Lantern']||0) > 0){
+    // special: blackglass can absorb instead of emit if misused. Offer a choice modal? Keep simple: using emits a controlled flash.
+  }
+  writeAction("You strike a small lantern. Light spills — a warm wrongness in the dark.");
+  updatePing(3, "exposed light");
+  writeDanger("The glow is beautiful and false. Something sniffs the air like a beast smelling flame.");
+  state.turns++; turnsEl.textContent = "Turns: " + state.turns;
+}
+
+function shout(){
+  writeAction("You shout in frustration. The sound scatters like beads on stone.");
+  updatePing(2, "loud speech");
+  writeDanger("Nearby shapes prick up. Something near you answers with a long, slow step.");
+  state.turns++; turnsEl.textContent = "Turns: " + state.turns;
+}
+
+/* ---------- Special outcomes & endings ---------- */
+
+function endGameLeviathan(){
+  writeDanger("Silence condenses. The world narrows to the rope at your waist. Cold, patient jaws open in the sensate.");
+  writeDanger("The Silence Leviathan finds you. Rope, braids, beads — none keep it at bay.");
+  writeWorld("— THE END —\nYou were heard.\nReload to try a quieter path.");
+  // lock choices
+  choicesEl.innerHTML = '';
+  const retry = document.createElement('button');
+  retry.className = 'choice';
+  retry.textContent = 'Restart (learn the ropes)';
+  retry.addEventListener('click', resetGame);
+  choicesEl.appendChild(retry);
+}
+
+function goodEnd(){
+  writeWorld("You weave a perfect braid, trade beads for a secret, and help seal a bell's clapper just so. The world does not end tonight.");
+  writeWorld("— VICTORY — You live to braid another day.");
+  choicesEl.innerHTML = '';
+  const retry = document.createElement('button');
+  retry.className = 'choice';
+  retry.textContent = 'Play Again';
+  retry.addEventListener('click', resetGame);
+  choicesEl.appendChild(retry);
+}
+
+/* ---------- Risk mitigation & item use (quick tools) ---------- */
+
+document.getElementById('saveBtn').addEventListener('click', ()=>{
+  localStorage.setItem('null_state', JSON.stringify(state));
+  writeAction("Saved.");
+});
+document.getElementById('loadBtn').addEventListener('click', ()=>{
+  const s = localStorage.getItem('null_state');
+  if (s){ state = JSON.parse(s); renderAfterLoad(); writeAction("Loaded saved state."); }
+  else writeDanger("No save found.");
+});
+document.getElementById('resetBtn').addEventListener('click', resetGame);
+
+function resetGame(){
+  state = {
+    location: 'Still Market',
+    pings: 0,
+    turns: 0,
+    inventory: {
+      'Quencher Powder': 1,
+      'Aura Thread': 1,
+      'Blackglass Lantern': 0,
+      'Beads': 3,
+      'Braids': 1
+    },
+    flags: {}
+  };
+  logEl.innerHTML = '';
+  renderLocations();
+  renderInventory();
+  init();
+}
+
+function renderAfterLoad(){
+  renderLocations();
+  renderInventory();
+  pingNumEl.textContent = state.pings;
+  const beads = ropeEl.querySelectorAll('.bead');
+  beads.forEach(b=>{
+    const i = Number(b.getAttribute('data-i'));
+    if (i < state.pings) b.classList.add('on'); else b.classList.remove('on');
+  });
+  sensateEl.textContent = sensateFromPing(state.pings);
+  turnsEl.textContent = "Turns: " + state.turns;
+  logEl.innerHTML = '';
+  writeWorld("Loaded a remembered path.");
+  describeLocation();
+  renderChoices();
+}
+
+function sensateFromPing(p){
+  if (p <= 1) return "Calm and clear.";
+  if (p <= 3) return "Uneasy.";
+  if (p <= 5) return "Noisy and chaotic.";
+  return "The sensate frays.";
+}
+
+/* ---------- Start ---------- */
+init();
+
+</script>
+</body>
+</html>
